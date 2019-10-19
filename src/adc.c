@@ -136,16 +136,17 @@ void adc_init(int32_t sampleTime)
     vQueueAddToRegistry( xADCQueue, "adcQ" );
 #endif
 
-    xTimer = xTimerCreate("trigerADC",
+	// Se inicializa el ADC
+	ADC_config();
+
+	if (sampleTime > 0){
+		xTimer = xTimerCreate("trigerADC",
     		sampleTime / portTICK_PERIOD_MS,
 			pdTRUE,
 			NULL,
 			vCallbackFunction);
-
-	// Se inicializa el ADC
-	ADC_config();
-
-	xTimerStart(xTimer, portMAX_DELAY);
+		xTimerStart(xTimer, portMAX_DELAY);
+	}
 }
 
 int32_t adc_getVal(void)
