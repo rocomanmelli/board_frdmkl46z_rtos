@@ -41,6 +41,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
+#include "uart_rtos.h"
 
 
 // COMMENT
@@ -50,6 +51,17 @@
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
+
+#define ACC_THR 100
+#define ACC_CNT 10
+#define LENGTH_STR_BUFFER 40
+
+extern uint32_t timestamp;
+
+typedef enum{
+    TRANSMITTING_OFF = 0,
+	TRANSMITTING_ON,
+} AccelerometerStates;
 
 typedef union
 {
@@ -139,7 +151,12 @@ typedef union
 
 /*==================[internal data declaration]==============================*/
 
-static int16_t readX, readY, readZ;
+static int16_t readX = 0;
+static int16_t readY = 0;
+static int16_t readZ = 0;
+static int16_t readX_old = 0;
+static int16_t readY_old = 0;
+static int16_t readZ_old = 0;
 
 /*==================[internal functions declaration]=========================*/
 static uint8_t mma8451_read_reg(uint8_t addr)
@@ -222,6 +239,9 @@ static void taskAcc(void *pvParameters)
     int16_t readG;
     INT_SOURCE_t intSource;
     STATUS_t status;
+	static AccelerometerStates state = 0;
+	char str[LENGTH_STR_BUFFER];
+	uint8_t sent_count = 0;
 
 	while (1)
 	{
@@ -237,25 +257,56 @@ static void taskAcc(void *pvParameters)
 
 	        if (status.XDR)
 	        {
+				readX_old = readX;
 	            readG   = (int16_t)mma8451_read_reg(0x01)<<8;
 	            readG  |= mma8451_read_reg(0x02);
 	            readX = readG >> 2;
+				readX = (int16_t) ((((int32_t) readX) * 100) / 4096);
 	        }
 
 	        if (status.YDR)
 	        {
+				readY_old = readY;
 	            readG   = (int16_t)mma8451_read_reg(0x03)<<8;
 	            readG  |= mma8451_read_reg(0x04);
 	            readY = readG >> 2;
+				readY = (int16_t) ((((int32_t) readY) * 100) / 4096);
 	        }
 
 	        if (status.ZDR)
 	        {
+				readZ_old = readZ;
 	            readG   = (int16_t)mma8451_read_reg(0x05)<<8;
 	            readG  |= mma8451_read_reg(0x06);
 	            readZ = readG >> 2;
+				readZ = (int16_t) ((((int32_t) readZ) * 100) / 4096);
 	        }
 	    }
+
+		switch (state){
+            case TRANSMITTING_OFF:
+                if (readX < readX_old - ACC_THR || readX > readX_old + ACC_THR
+				|| readY < readY_old - ACC_THR || readY > readY_old + ACC_THR
+				|| readZ < readZ_old - ACC_THR || readZ > readZ_old + ACC_THR){
+                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
+                    (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
+					sent_count = 0;
+                    state = TRANSMITTING_ON;
+                }
+                break;
+            case TRANSMITTING_ON:
+                sent_count++;
+				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
+                (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
+                if (sent_count >= ACC_CNT - 1){
+                    state = TRANSMITTING_OFF;
+                }
+                break;
+            default:
+                break;
+        }
+
+
 
 	    xSemaphoreGive(xMutexAcc);
 
