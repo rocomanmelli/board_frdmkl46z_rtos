@@ -121,6 +121,7 @@ void ADC_IniciarConv(void)
 
 void vCallbackFunction( TimerHandle_t xTimer )
 {
+	(void) xTimer; /* To avoid warning. */
 	ADC_IniciarConv();
 }
 

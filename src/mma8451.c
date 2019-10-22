@@ -42,6 +42,7 @@
 #include "semphr.h"
 #include "task.h"
 #include "uart_rtos.h"
+#include <stdio.h>
 
 
 // COMMENT
@@ -236,6 +237,7 @@ static void config_port_int1(void)
 
 static void taskAcc(void *pvParameters)
 {
+	(void) pvParameters;
     int16_t readG;
     INT_SOURCE_t intSource;
     STATUS_t status;
