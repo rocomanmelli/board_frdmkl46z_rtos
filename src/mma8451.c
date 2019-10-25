@@ -42,6 +42,7 @@
 #include "semphr.h"
 #include "task.h"
 #include "uart_rtos.h"
+#include "light_sensor.h"
 #include <stdio.h>
 
 
@@ -57,7 +58,6 @@
 #define ACC_CNT 10
 #define LENGTH_STR_BUFFER 40
 
-extern uint32_t timestamp;
 
 typedef enum{
     TRANSMITTING_OFF = 0,
@@ -290,7 +290,7 @@ static void taskAcc(void *pvParameters)
                 if (readX < readX_old - ACC_THR || readX > readX_old + ACC_THR
 				|| readY < readY_old - ACC_THR || readY > readY_old + ACC_THR
 				|| readZ < readZ_old - ACC_THR || readZ > readZ_old + ACC_THR){
-                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
+                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", GetTimeStamp(), readX, readY, readZ);
                     (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
 					sent_count = 0;
                     state = TRANSMITTING_ON;
@@ -298,7 +298,7 @@ static void taskAcc(void *pvParameters)
                 break;
             case TRANSMITTING_ON:
                 sent_count++;
-				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
+				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", GetTimeStamp(), readX, readY, readZ);
                 (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
                 if (sent_count >= ACC_CNT - 1){
                     state = TRANSMITTING_OFF;
