@@ -31,6 +31,19 @@
  */
 
 
+/**
+ * \file light_sensor.c
+ * \brief Light sensor task source file
+ * \details This file implements all the things needed for the light sensor
+ * task.
+ * \author Roman Comelli
+ * \date 2019
+ * \copyright 3-Clause BSD License
+ * \addtogroup LightSensorTask Light sensor task
+ * @{
+ */
+
+
 /*================================[inclusions]================================*/
 /* FreeRTOS kernel headers. */
 #include "FreeRTOS.h"
@@ -38,9 +51,12 @@
 
 /* Modules headers. */
 #include "board_dsi.h"
+#include "adc.h"
+#include "uart_rtos.h"
 
 /* Standard C headers. */
 #include <stdio.h>
+#include <string.h>
 
 
 /*==========================[macros and definitions]==========================*/
@@ -65,6 +81,10 @@ static void LightSensorTask(TimerHandle_t xTimer);
 
 
 /*=========================[internal data definition]=========================*/
+/**
+ * \var static uint32_t $timestamp
+ * Static variable used to generate time stamps.
+ */
 static uint32_t timestamp = 0;
 
 
@@ -72,6 +92,13 @@ static uint32_t timestamp = 0;
 
 
 /*======================[internal functions definitions]======================*/
+/**
+ * \brief Controls everything related to the light sensor task.
+ * \details Triggers the ADC to measure the output of the light sensor and,
+ * depending on the acquired value, its finite state machine send a message
+ * through the UART.
+ * @param[in]  xTimer  Handle for a timer object (required by the FreeRTOS API).
+ */
 static void LightSensorTask(TimerHandle_t xTimer){
     (void) xTimer;
     int32_t light_average = 0;
@@ -159,6 +186,10 @@ static void LightSensorTask(TimerHandle_t xTimer){
 
 
 /*======================[external functions definitions]======================*/
+/**
+ * \brief Initializes the light sensor.
+ * \details Creates a periodic task to run the light sensor task.
+ */
 void LightSensorInit(void){
     TimerHandle_t periodic_task_handle;
 
@@ -171,6 +202,13 @@ void LightSensorInit(void){
     xTimerStart(periodic_task_handle, portMAX_DELAY);
 }
 
+/**
+ * \brief Returns time.
+ * \return The current time stamp.
+ */
 uint32_t GetTimeStamp(void){
     return timestamp;
 }
+
+
+/** @} */

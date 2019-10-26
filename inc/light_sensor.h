@@ -31,18 +31,21 @@
  */
 
 
+/**
+ * \file light_sensor.h
+ * \brief Light sensor task header file
+ * \details This header exposes things needed to use the light sensor task.
+ * \author Roman Comelli
+ * \date 2019
+ * \copyright 3-Clause BSD License
+ * \addtogroup LightSensorTask Light sensor task
+ * @{
+ */
+
+
 #ifndef LIGHT_SENSOR_H
 #define LIGHT_SENSOR_H
-/** \brief Short description of this file
- **
- ** Long description of this file
- **
- **/
 
-/** \addtogroup project
- ** @{ */
-/** \addtogroup module
- ** @{ */
 
 /*================================[inclusions]================================*/
 
@@ -63,14 +66,6 @@ extern "C" {
 
 
 /*======================[external functions declaration]======================*/
-/** \brief resumen de lo que hace la función
- **
- ** más comentarios de lo que hace la función
- **
- ** \param[in]    a first parameter ...
- ** \param[in]    b second parameter ...
- ** \return E_OK  returns ...
- **/
 void LightSensorInit(void);
 uint32_t GetTimeStamp(void);
 
@@ -79,8 +74,6 @@ uint32_t GetTimeStamp(void);
 #ifdef __cplusplus
 }
 #endif
-/** @} doxygen end group definition */
-/** @} doxygen end group definition */
 
 
 #endif
