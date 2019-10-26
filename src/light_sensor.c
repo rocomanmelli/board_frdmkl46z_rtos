@@ -70,6 +70,7 @@ static uint32_t timestamp = 0;
 
 /*=========================[external data definition]=========================*/
 
+
 /*======================[internal functions definitions]======================*/
 static void LightSensorTask(TimerHandle_t xTimer){
     (void) xTimer;

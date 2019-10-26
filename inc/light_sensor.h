@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef LIGHT_SENSOR_H
 #define LIGHT_SENSOR_H
 /** \brief Short description of this file
@@ -45,18 +46,21 @@
 
 /*================================[inclusions]================================*/
 
+
 /*================================[c-plusplus]================================*/
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+
 /*==========================[macros and definitions]==========================*/
-/** \brief comentario ... */
-#define MODULE_VALUE   123456
+
 
 /*=================================[typedefs]=================================*/
 
+
 /*========================[external data declarations]========================*/
+
 
 /*======================[external functions declaration]======================*/
 /** \brief resumen de lo que hace la función
@@ -70,11 +74,13 @@ extern "C" {
 void LightSensorInit(void);
 uint32_t GetTimeStamp(void);
 
+
 /*================================[c-plusplus]================================*/
 #ifdef __cplusplus
 }
 #endif
 /** @} doxygen end group definition */
 /** @} doxygen end group definition */
+
 
 #endif
