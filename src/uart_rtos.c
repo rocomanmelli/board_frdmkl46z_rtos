@@ -69,8 +69,8 @@ void uart_rtos_init(void)
 {
 	lpsci_config_t config;
 
-	qSend = xQueueCreate(16, sizeof(uint8_t));
-	qRecv = xQueueCreate(16, sizeof(uint8_t));
+	qSend = xQueueCreate(100, sizeof(uint8_t));
+	qRecv = xQueueCreate(100, sizeof(uint8_t));
 
 #ifdef DEBUG
     vQueueAddToRegistry( qSend, "uartTxQ" );
@@ -152,7 +152,7 @@ int32_t uart_rtos_envDatos(uint8_t *pBuf, int32_t size, uint32_t blockTime)
     else
     	waitTick = portMAX_DELAY;
 
-    while (xQueueSend(qSend, &pBuf[ret], waitTick) == pdTRUE && ret < size)
+    while (ret < size && xQueueSend(qSend, &pBuf[ret], waitTick) == pdTRUE)
     {
     	if (txHasEnded)
     	{
