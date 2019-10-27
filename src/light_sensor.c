@@ -112,10 +112,8 @@ static void LightSensorTask(TimerHandle_t xTimer){
 
     /* Getting value. */
     ADC_IniciarConv();
-    if (!adc_getValueBlocking(light_measurement + index, 1)){
-        /* Once we note code never gets to this point, we should remove it. */
-        while (1);
-    }
+    adc_getValueBlocking(light_measurement + index, 1);
+    /* Execution never gets to this point without a measurement. */
     if (++index == SAMPLES_COUNT){
         index = 0;
     }
