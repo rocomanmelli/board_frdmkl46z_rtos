@@ -47,7 +47,7 @@
 /*================================[inclusions]================================*/
 /* FreeRTOS kernel headers. */
 #include "FreeRTOS.h"
-#include "timers.h"
+#include "task.h"
 
 /* Modules headers. */
 #include "board_dsi.h"
@@ -77,15 +77,10 @@ typedef enum{
 
 
 /*=====================[internal functions declarations]=====================*/
-static void LightSensorTask(TimerHandle_t xTimer);
+static void LightSensorTask(void *pvParameters);
 
 
 /*=========================[internal data definition]=========================*/
-/**
- * \var static uint32_t $timestamp
- * Static variable used to generate time stamps.
- */
-static uint32_t timestamp = 0;
 
 
 /*=========================[external data definition]=========================*/
@@ -99,85 +94,87 @@ static uint32_t timestamp = 0;
  * through the UART.
  * @param[in]  xTimer  Handle for a timer object (required by the FreeRTOS API).
  */
-static void LightSensorTask(TimerHandle_t xTimer){
-    (void) xTimer;
+static void LightSensorTask(void *pvParameters){
     int32_t light_average = 0;
     static uint8_t samples = 0, index = 0, ms_count = 0;
     static LightSensorStates state = TURNED_OFF;
     uint8_t i;
     char str[LENGTH_STR_BUFFER];
     static int32_t light_measurement[SAMPLES_COUNT];
+    TickType_t timestamp;
 
-    timestamp++;
+    while(1){
+        if (adc_getValueBlocking(light_measurement + index, 1)){
 
-    /* Getting value. */
-    ADC_IniciarConv();
-    adc_getValueBlocking(light_measurement + index, 1);
-    /* Execution never gets to this point without a measurement. */
-    if (++index == SAMPLES_COUNT){
-        index = 0;
-    }
+            /* Get the time the function started. */
+            timestamp = xTaskGetTickCount();
 
-    /* Processing (till sample 20, average is not representative). */
-    if (samples < SAMPLES_COUNT - 1){
-        samples++;
-    }
-    else{
-        /* Calculating average. */
-        for (i = 0; i < SAMPLES_COUNT; i++){
-            light_average += light_measurement[i];
-        }
-        light_average /= SAMPLES_COUNT;
-        /* Finite state machine. */
-        switch (state){
-            case TURNED_OFF:
-                if (light_average < LUZ_THR){
-                    board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_ON);
-                    snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:ON\r\n", timestamp);
-                    (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
-                    state = TURNED_ON_WAITING;
+            if (++index == SAMPLES_COUNT){
+                index = 0;
+            }
+
+            /* Processing (till sample 20, average is not representative). */
+            if (samples < SAMPLES_COUNT - 1){
+                samples++;
+            }
+            else{
+                /* Calculating average. */
+                for (i = 0; i < SAMPLES_COUNT; i++){
+                    light_average += light_measurement[i];
                 }
-                break;
-            case TURNED_ON_WAITING:
-                ms_count++;
-                if (ms_count == TURNED_ON_TIME){
-                    ms_count = 0;
-                    if (light_average > LUZ_THR){
-                        board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
-                        snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:OFF\r\n", timestamp);
-                        (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
-                        state = TURNED_OFF_WAITING;
-                    }
-                    else{
-                        state = TURNED_ON;
-                    }
+                light_average /= SAMPLES_COUNT;
+                /* Finite state machine. */
+                switch (state){
+                    case TURNED_OFF:
+                        if (light_average < LUZ_THR){
+                            board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_ON);
+                            snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:ON\r\n", timestamp);
+                            (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
+                            state = TURNED_ON_WAITING;
+                        }
+                        break;
+                    case TURNED_ON_WAITING:
+                        ms_count++;
+                        if (ms_count == TURNED_ON_TIME){
+                            ms_count = 0;
+                            if (light_average > LUZ_THR){
+                                board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
+                                snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:OFF\r\n", timestamp);
+                                (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
+                                state = TURNED_OFF_WAITING;
+                            }
+                            else{
+                                state = TURNED_ON;
+                            }
+                        }
+                        break;
+                    case TURNED_ON:
+                        if (light_average > LUZ_THR){
+                            board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
+                            snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:OFF\r\n", timestamp);
+                            (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
+                            state = TURNED_OFF_WAITING;
+                        }
+                        break;
+                    case TURNED_OFF_WAITING:
+                        ms_count++;
+                        if (ms_count == TURNED_OFF_TIME){
+                            ms_count = 0;
+                            if (light_average < LUZ_THR){
+                                board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_ON);
+                                snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:ON\r\n", timestamp);
+                                (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
+                                state = TURNED_ON_WAITING;
+                            }
+                            else{
+                                state = TURNED_OFF;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
                 }
-                break;
-            case TURNED_ON:
-                if (light_average > LUZ_THR){
-                    board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
-                    snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:OFF\r\n", timestamp);
-                    (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
-                    state = TURNED_OFF_WAITING;
-                }
-                break;
-            case TURNED_OFF_WAITING:
-                ms_count++;
-                if (ms_count == TURNED_OFF_TIME){
-                    ms_count = 0;
-                    if (light_average < LUZ_THR){
-                        board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_ON);
-                        snprintf(str, LENGTH_STR_BUFFER, "[%d] LED:ON\r\n", timestamp);
-                        (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), 1);
-                        state = TURNED_ON_WAITING;
-                    }
-                    else{
-                        state = TURNED_OFF;
-                    }
-                }
-                break;
-            default:
-                break;
+            }
         }
     }
 }
@@ -185,27 +182,17 @@ static void LightSensorTask(TimerHandle_t xTimer){
 
 /*======================[external functions definitions]======================*/
 /**
- * \brief Initializes the light sensor.
- * \details Creates a periodic task to run the light sensor task.
+ * \brief Creates the task for the light sensor.
  */
 void LightSensorInit(void){
-    TimerHandle_t periodic_task_handle;
-
-    periodic_task_handle = xTimerCreate("LightSensorTask",
-                                        1 / portTICK_PERIOD_MS,
-			                            pdTRUE,
-		                                NULL,
-			                            LightSensorTask);
-
-    xTimerStart(periodic_task_handle, portMAX_DELAY);
-}
-
-/**
- * \brief Returns time.
- * \return The current time stamp.
- */
-uint32_t GetTimeStamp(void){
-    return timestamp;
+    if (xTaskCreate(LightSensorTask, "LightSensorTask", 200, NULL,
+        configMAX_PRIORITIES - 1, NULL) != pdPASS)
+    {
+        /* In this case, program will never get to this point. However, taking
+        into account the posibility to reuse this code, it is better to keep
+        this infinite loop. */
+        while (1);
+    }
 }
 
 

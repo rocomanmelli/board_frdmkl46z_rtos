@@ -244,6 +244,7 @@ static void taskAcc(void *pvParameters)
 	static AccelerometerStates state = 0;
 	char str[LENGTH_STR_BUFFER];
 	uint8_t sent_count = 0;
+	TickType_t timestamp;
 
 	while (1)
 	{
@@ -285,12 +286,15 @@ static void taskAcc(void *pvParameters)
 	        }
 	    }
 
+		/* Get the time the function started. */
+		timestamp = xTaskGetTickCount();
+
 		switch (state){
             case TRANSMITTING_OFF:
                 if (readX < readX_old - ACC_THR || readX > readX_old + ACC_THR
 				|| readY < readY_old - ACC_THR || readY > readY_old + ACC_THR
 				|| readZ < readZ_old - ACC_THR || readZ > readZ_old + ACC_THR){
-                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", GetTimeStamp(), readX, readY, readZ);
+                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
                     (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
 					sent_count = 0;
                     state = TRANSMITTING_ON;
@@ -298,7 +302,7 @@ static void taskAcc(void *pvParameters)
                 break;
             case TRANSMITTING_ON:
                 sent_count++;
-				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", GetTimeStamp(), readX, readY, readZ);
+				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
                 (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
                 if (sent_count >= ACC_CNT - 1){
                     state = TRANSMITTING_OFF;
