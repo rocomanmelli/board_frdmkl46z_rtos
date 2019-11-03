@@ -67,7 +67,6 @@ extern "C" {
 
 /*======================[external functions declaration]======================*/
 void LightSensorInit(void);
-uint32_t GetTimeStamp(void);
 
 
 /*================================[c-plusplus]================================*/
