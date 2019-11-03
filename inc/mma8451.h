@@ -37,6 +37,7 @@
 
 /*==================[inclusions]=============================================*/
 #include "stdint.h"
+#include "stdbool.h"
 
 /*==================[cplusplus]==============================================*/
 #ifdef __cplusplus
@@ -56,6 +57,13 @@ typedef enum
     DR_6p25hz = 0b110,
     DR_1p56hz = 0b111,
 }DR_enum;
+
+typedef struct accelerations
+{
+    int16_t readX;
+    int16_t readY;
+    int16_t readZ;
+} accelerations_t;
 
 /** \brief puerto I2C utilizado en el acelerómetro  */
 #define MMA8451_I2C     I2C0
@@ -78,6 +86,7 @@ void mma8451_init(void);
 int16_t mma8451_getAcX(void);
 
 void mma8451_setDataRate(DR_enum rate);
+bool acc_getValueBlocking(accelerations_t *lect, int32_t timeToWait);
 
 /*==================[cplusplus]==============================================*/
 #ifdef __cplusplus

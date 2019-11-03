@@ -41,9 +41,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
-#include "uart_rtos.h"
-#include "light_sensor.h"
-#include <stdio.h>
+#include "queue.h"
 
 
 // COMMENT
@@ -53,16 +51,6 @@
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
-
-#define ACC_THR 100
-#define ACC_CNT 10
-#define LENGTH_STR_BUFFER 40
-
-
-typedef enum{
-    TRANSMITTING_OFF = 0,
-	TRANSMITTING_ON,
-} AccelerometerStates;
 
 typedef union
 {
@@ -152,12 +140,8 @@ typedef union
 
 /*==================[internal data declaration]==============================*/
 
-static int16_t readX = 0;
-static int16_t readY = 0;
-static int16_t readZ = 0;
-static int16_t readX_old = 0;
-static int16_t readY_old = 0;
-static int16_t readZ_old = 0;
+static int16_t readX, readY, readZ;
+static QueueHandle_t xACCQueue;
 
 /*==================[internal functions declaration]=========================*/
 static uint8_t mma8451_read_reg(uint8_t addr)
@@ -237,14 +221,10 @@ static void config_port_int1(void)
 
 static void taskAcc(void *pvParameters)
 {
-	(void) pvParameters;
     int16_t readG;
     INT_SOURCE_t intSource;
     STATUS_t status;
-	static AccelerometerStates state = 0;
-	char str[LENGTH_STR_BUFFER];
-	uint8_t sent_count = 0;
-	TickType_t timestamp;
+	accelerations_t accelerations;
 
 	while (1)
 	{
@@ -260,7 +240,6 @@ static void taskAcc(void *pvParameters)
 
 	        if (status.XDR)
 	        {
-				readX_old = readX;
 	            readG   = (int16_t)mma8451_read_reg(0x01)<<8;
 	            readG  |= mma8451_read_reg(0x02);
 	            readX = readG >> 2;
@@ -269,7 +248,6 @@ static void taskAcc(void *pvParameters)
 
 	        if (status.YDR)
 	        {
-				readY_old = readY;
 	            readG   = (int16_t)mma8451_read_reg(0x03)<<8;
 	            readG  |= mma8451_read_reg(0x04);
 	            readY = readG >> 2;
@@ -278,7 +256,6 @@ static void taskAcc(void *pvParameters)
 
 	        if (status.ZDR)
 	        {
-				readZ_old = readZ;
 	            readG   = (int16_t)mma8451_read_reg(0x05)<<8;
 	            readG  |= mma8451_read_reg(0x06);
 	            readZ = readG >> 2;
@@ -286,33 +263,10 @@ static void taskAcc(void *pvParameters)
 	        }
 	    }
 
-		/* Get the time the function started. */
-		timestamp = xTaskGetTickCount();
-
-		switch (state){
-            case TRANSMITTING_OFF:
-                if (readX < readX_old - ACC_THR || readX > readX_old + ACC_THR
-				|| readY < readY_old - ACC_THR || readY > readY_old + ACC_THR
-				|| readZ < readZ_old - ACC_THR || readZ > readZ_old + ACC_THR){
-                    snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
-                    (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
-					sent_count = 0;
-                    state = TRANSMITTING_ON;
-                }
-                break;
-            case TRANSMITTING_ON:
-                sent_count++;
-				snprintf(str, LENGTH_STR_BUFFER, "[%d] ACC:X=%d;Y=%d;Z=%d\r\n", timestamp, readX, readY, readZ);
-                (void) uart_rtos_envDatos((uint8_t*) str, strlen(str), portMAX_DELAY);
-                if (sent_count >= ACC_CNT - 1){
-                    state = TRANSMITTING_OFF;
-                }
-                break;
-            default:
-                break;
-        }
-
-
+		accelerations.readX = readX;
+		accelerations.readY = readY;
+		accelerations.readZ = readZ;
+		xQueueSend(xACCQueue, &accelerations, portMAX_DELAY);
 
 	    xSemaphoreGive(xMutexAcc);
 
@@ -377,6 +331,19 @@ void mma8451_init(void)
     config_port_int1();
 
     xTaskCreate(taskAcc, "acc", 200, NULL, 1, NULL);
+
+	xACCQueue = xQueueCreate( 10, sizeof( accelerations_t ) );
+#ifdef DEBUG
+    vQueueAddToRegistry( xACCQueue, "accQ" );
+#endif
+}
+
+bool acc_getValueBlocking(accelerations_t *lect, int32_t timeToWait)
+{
+	if (xQueueReceive(xACCQueue, lect, timeToWait / portTICK_PERIOD_MS) == pdTRUE)
+		return true;
+	else
+		return false;
 }
 
 void mma8451_setDataRate(DR_enum rate)
@@ -426,3 +393,4 @@ void PORTC_PORTD_IRQHandler(void)
 }
 
 /*==================[end of file]============================================*/
+
